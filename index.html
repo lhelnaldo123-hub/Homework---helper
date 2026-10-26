@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tender Sprout AI - Image Create</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui}
+body{background:#f8fafc;display:flex;min-height:100vh}
+.sidebar{width:260px;background:#0f172a;color:#fff;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow:hidden}
+.sideHead{padding:16px;border-bottom:1px solid #1e293b;display:flex;gap:10px;align-items:center}
+.sideLogo{width:32px;height:32px;background:#22c55e;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:900;color:#000}
+.hist{flex:1;overflow:auto;padding:10px}
+.histItem{padding:10px 12px;border-radius:10px;background:#1e293b;margin:6px 0;font-size:13px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.main{flex:1;display:flex;flex-direction:column;max-width:900px;margin:0 auto;width:100%}
+header{background:#fff;border-bottom:1px solid #e2e8f0;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:2}
+.badge{background:#dcfce7;color:#166534;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:800}
+.chat{flex:1;padding:16px;padding-bottom:160px}
+.msg{padding:16px 18px;border-radius:20px;margin:12px 0;line-height:1.7;font-size:15px;max-width:92%;position:relative;white-space:pre-wrap}
+.user{background:linear-gradient(135deg,#000,#334155);color:#fff;margin-left:auto;border-bottom-right-radius:6px}
+.ai{background:#fff;border:1px solid #e2e8f0;border-left:4px solid #22c55e;color:#0f172a;border-bottom-left-radius:6px;box-shadow:0 2px 10px rgba(0,0,0,.05)}
+.msg img{max-width:100%;border-radius:16px;margin-top:10px;border:1px solid #e2e8f0}
+.copyBtn{margin-top:10px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:800;cursor:pointer}
+.bottom{position:fixed;bottom:0;right:0;left:260px;background:#ffffffcc;backdrop-filter:blur(10px);border-top:1px solid #e2e8f0;padding:12px}
+.bottomInner{max-width:760px;margin:0 auto;display:flex;gap:8px;align-items:flex-end;background:#fff;border:1px solid #e2e8f0;border-radius:28px;padding:6px 8px;box-shadow:0 4px 20px rgba(0,0,0,.08)}
+textarea{flex:1;border:none;outline:none;padding:12px 8px;font-size:16px;resize:none;max-height:120px;background:transparent}
+.iconBtn{width:40px;height:40px;border-radius:50%;border:none;background:#f1f5f9;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px}
+.sendBtn{width:40px;height:40px;border-radius:50%;border:none;background:#22c55e;color:#000;font-weight:900;cursor:pointer;font-size:18px}
+#preview{display:none;padding:8px 16px}
+#preview img{max-width:110px;border-radius:12px;border:2px solid #22c55e}
+.keyInput{width:100%;background:#1e293b;border:1px dashed #334155;color:#94a3b8;border-radius:10px;padding:8px 10px;font-size:11px;margin:10px}
+@media(max-width:700px){.sidebar{display:none}.bottom{left:0}}
+</style>
+</head>
+<body>
+<div class="sidebar">
+<div class="sideHead"><div class="sideLogo">TS</div><div><b>Tender Sprout</b><div style="font-size:10px;color:#94a3b8">AI History</div></div></div>
+<input id="keyInput" class="keyInput" placeholder="Paste AQ key once">
+<div class="hist" id="hist"></div>
+<button onclick="clearHist()" style="margin:10px;background:#1e293b;border:none;color:#94a3b8;padding:8px;border-radius:8px;font-size:11px;cursor:pointer">Clear History</button>
+</div>
+<div class="main">
+<header><div style="display:flex;gap:10px;align-items:center"><div style="width:36px;height:36px;background:#000;color:#fff;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:900">TS</div><div><b>Tender Sprout AI</b><div style="font-size:11px;color:#64748b">Text • Image Read • Image Create</div></div></div><div class="badge">Ghana</div></header>
+<div id="preview"><img id="imgPrev"><button onclick="removeImg()" style="margin-left:8px;font-size:12px;border:none;background:#fee2e2;padding:4px 8px;border-radius:10px">Remove ✕</button></div>
+<div id="chat" class="chat"><div class="msg ai">Hi Boss! 👋 Now I can:
+
+• <b>Answer homework</b> - Type question
+• <b>Read image</b> - Tap 🖼️ import worksheet
+• <b>Create image</b> - Tap 🎨 then type: "jollof rice in Ghana classroom"
+
+No *** stars, with colours + history + copy button!</div></div>
+<div class="bottom"><div class="bottomInner">
+<label class="iconBtn" title="Import worksheet">🖼️<input type="file" id="fileInput" accept="image/*" hidden></label>
+<button class="iconBtn" onclick="setCreateMode()" title="Create image">🎨</button>
+<textarea id="q" rows="1" placeholder="Ask or type image to create..."></textarea>
+<button class="sendBtn" onclick="ask()">↑</button>
+</div></div>
+</div>
+<script>
+const keyInput=document.getElementById('keyInput'); keyInput.value=localStorage.getItem('gemini_key')||""; keyInput.oninput=()=>localStorage.setItem('gemini_key',keyInput.value.trim());
+let chatHistory=[]; let selectedImage=null; let createMode=false;
+let allHist=JSON.parse(localStorage.getItem('ts_hist')||"[]"); renderHist();
+const fileInput=document.getElementById('fileInput'); fileInput.onchange=e=>handleFile(e.target.files[0]);
+function handleFile(file){ if(!file) return; const r=new FileReader(); r.onload=()=>{selectedImage=r.result; document.getElementById('imgPrev').src=selectedImage; document.getElementById('preview').style.display='block';}; r.readAsDataURL(file); }
+function removeImg(){selectedImage=null; document.getElementById('preview').style.display='none';}
+function setCreateMode(){createMode=true; const q=document.getElementById('q'); q.value="Create image of "; q.focus(); alert("Now type what image you want - e.g. 'Create image of Ghana jollof rice' and send");}
+function cleanText(t){return t.replace(/\*\*\*(.*?)\*\*\*/g,'$1').replace(/\*\*(.*?)\*\*/g,'$1').replace(/\*(.*?)\*/g,'$1').replace(/__([^_]+)__/g,'$1').replace(/`{1,3}([^`]+)`{1,3}/g,'$1').replace(/^#+\s*/gm,'').replace(/^\s*[-•]\s*/gm,'• ');}
+function renderHist(){ const h=document.getElementById('hist'); h.innerHTML=""; allHist.slice().reverse().forEach(it=>{ const d=document.createElement('div'); d.className='histItem'; d.innerText=it.q.slice(0,40); d.onclick=()=>{document.getElementById('q').value=it.q;}; h.appendChild(d);});}
+function clearHist(){ allHist=[]; localStorage.removeItem('ts_hist'); renderHist();}
+function addMsg(text,who,isImage){ const chat=document.getElementById('chat'); const div=document.createElement('div'); div.className='msg '+who;
+ if(isImage){ div.innerHTML=`<b>🎨 Generated image:</b><br>${cleanText(text)}`; const img=document.createElement('img'); img.src=isImage; div.appendChild(img); const dl=document.createElement('a'); dl.href=isImage; dl.download='tender-sprout.png'; dl.innerText='⬇️ Download'; dl.className='copyBtn'; dl.style.display='inline-block'; dl.style.textDecoration='none'; div.appendChild(document.createElement('br')); div.appendChild(dl);
+ } else { div.innerText=who==='user'?text:cleanText(text); if(who==='ai'){ const copy=document.createElement('button'); copy.className='copyBtn'; copy.innerText='📋 Copy'; copy.onclick=()=>{navigator.clipboard.writeText(cleanText(text)); copy.innerText='Copied ✓'; setTimeout(()=>copy.innerText='📋 Copy',1500);}; div.appendChild(document.createElement('br')); div.appendChild(copy);} }
+ chat.appendChild(div); window.scrollTo(0,document.body.scrollHeight);
+}
+async function ask(){
+ const qEl=document.getElementById('q'); let question=qEl.value.trim(); if(!question && !selectedImage) return;
+ let KEY=localStorage.getItem('gemini_key')||keyInput.value.trim(); if(!KEY){alert('Paste AQ key in left sidebar first'); return;}
+ const isImageRequest = /create image|generate image|draw image|make image/i.test(question);
+ if(question){addMsg(question,'user'); allHist.push({q:question}); localStorage.setItem('ts_hist',JSON.stringify(allHist)); renderHist(); qEl.value='';}
+ const chatDiv=document.getElementById('chat'); const loading=document.createElement('div'); loading.className='msg ai'; loading.innerText=isImageRequest?'🎨 Creating image... (10s)':'Thinking...'; chatDiv.appendChild(loading);
+ try{
+  if(isImageRequest){
+   let promptText=question.replace(/create image of|generate image of|create image|generate image/i,'').trim() || question;
+   const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=${KEY}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:"Generate image: "+promptText+" , high quality, 4k"}]}],generationConfig:{responseModalities:["TEXT","IMAGE"]}})});
+   const data=await res.json(); loading.remove();
+   if(data.error){ addMsg("Image error: "+data.error.message+" - Your key may not support image yet. Try again or use text 'explain "+promptText+"'",'ai'); return;}
+   let imgBase64=null; let textPart="Here is your image";
+   const parts=data.candidates?.[0]?.content?.parts||[];
+   parts.forEach(p=>{ if(p.inlineData||p.inline_data){ imgBase64="data:image/png;base64,"+(p.inlineData?.data||p.inline_data?.data);} if(p.text) textPart=p.text;});
+   if(imgBase64){ addMsg(textPart,'ai',imgBase64);} else { addMsg("Couldn't generate image, but here's description: "+textPart,'ai');}
+  } else {
+   if(question) chatHistory.push({role:'user', text:question});
+   let prompt=chatHistory.map(h=>`${h.role}: ${h.text}`).join('\n')+"\nYou are Tender Sprout Ghanaian teacher. Answer clean simple without ** or *. Use bullet •.";
+   let parts=[{text:prompt}]; if(selectedImage){ const base64=selectedImage.split(',')[1]; parts.push({inline_data:{mime_type:'image/jpeg', data:base64}});}
+   const MODELS=["gemini-2.5-flash-lite","gemini-1.5-flash-latest","gemini-flash-latest"]; let answerText="";
+   for(let MODEL of MODELS){ const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${KEY}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts}]})}); const data=await res.json(); if(!data.error){answerText=data.candidates?.[0]?.content?.parts?.[0]?.text; if(answerText) break;}}
+   loading.remove(); if(!answerText) answerText="Sorry try again"; addMsg(answerText,'ai'); chatHistory.push({role:'assistant', text:answerText}); removeImg();
+  }
+ }catch(e){loading.innerText="Error: "+e.message;}
+}
+document.getElementById('q').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault(); ask();}});
+</script>
+</body>
+</html>
